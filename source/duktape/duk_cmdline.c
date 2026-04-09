@@ -93,6 +93,8 @@
 
 #include "duk_cmdline.h"
 
+#include <time.h>
+
 #if defined(DUK_CMDLINE_LOWMEM)
 #include "duk_alloc_pool.h"
 #endif
@@ -107,6 +109,112 @@
 #define  MEM_LIMIT_NORMAL   (128*1024*1024)   /* 128 MB */
 #define  MEM_LIMIT_HIGH     (2047*1024*1024)  /* ~2 GB */
 #define  LINEBUF_SIZE       65536
+
+#define CMDLINE_EXEC_TIMEOUT_SEC 300  /* execution timeout in seconds */
+
+#include <stdarg.h>
+
+#define JST_DEBUG_LOG "/var/jst_debug.log"
+
+static void jst_debug_log(const char *fmt, ...)
+{
+    FILE *fp = fopen(JST_DEBUG_LOG, "a");
+    if (!fp) {
+        return; /* fail silently */
+    }
+
+    /* Timestamp */
+    time_t now = time(NULL);
+    struct tm tm;
+    localtime_r(&now, &tm);
+
+    fprintf(fp, "%04d-%02d-%02d %02d:%02d:%02d | ",
+            tm.tm_year + 1900,
+            tm.tm_mon + 1,
+            tm.tm_mday,
+            tm.tm_hour,
+            tm.tm_min,
+            tm.tm_sec);
+
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(fp, fmt, args);
+    va_end(args);
+
+    fprintf(fp, "\n");
+    fclose(fp);
+}
+
+/* ============================================================
+ * Execution timeout (instruction-count based, reliable)
+ * ============================================================ */
+
+static duk_uint_t exec_tick_count = 0;
+static duk_uint_t exec_tick_limit = 0;
+
+/*
+ * Interrupt callback
+ * Called cooperatively by Duktape at safe points
+ */
+duk_bool_t cmdline_exec_timeout_check(void *udata) {
+    (void) udata;
+
+    if (exec_tick_limit == 0) {
+        return 0;  /* timeout disabled */
+    }
+
+    exec_tick_count++;
+
+    if (exec_tick_count >= exec_tick_limit) {
+        /* non-zero return value interrupts execution */
+        jst_debug_log(
+            "EXEC TIMEOUT TRIGGERED: tick_count=%lu, tick_limit=%lu",
+            (unsigned long) exec_tick_count,
+            (unsigned long) exec_tick_limit
+        );
+        return 1;
+    }
+
+    return 0;
+}
+
+/*
+ * Enable execution timeout
+ *
+ * timeout_seconds is converted to instruction ticks.
+ * Empirically chosen multiplier: 10k ticks/sec.
+ */
+void cmdline_set_exec_timeout(duk_context *ctx, int timeout_seconds) {
+    if (timeout_seconds <= 0) {
+        jst_debug_log(
+            "EXEC TIMEOUT NOT SET (invalid value): timeout_seconds=%d",
+            timeout_seconds
+        );
+        return;
+    }
+
+    exec_tick_count = 0;
+    exec_tick_limit = (duk_uint_t) timeout_seconds * 10000;
+
+    duk_set_interrupt(ctx, cmdline_exec_timeout_check, NULL);
+    jst_debug_log(
+        "EXEC TIMEOUT ENABLED: timeout_seconds=%d, tick_limit=%lu",
+        timeout_seconds,
+        (unsigned long) exec_tick_limit
+    );
+}
+
+/*
+ * Disable execution timeout
+ */
+void cmdline_clear_exec_timeout(duk_context *ctx) {
+    exec_tick_limit = 0;
+    exec_tick_count = 0;
+
+    duk_set_interrupt(ctx, NULL, NULL);
+
+    jst_debug_log("EXEC TIMEOUT CLEARED");
+}
 
 char* jst_debug_file_name = NULL;
 
@@ -316,8 +424,12 @@ static duk_ret_t wrapped_compile_execute(duk_context *ctx, void *udata) {
 	lowmem_start_exec_timeout();
 #endif
 
+	cmdline_set_exec_timeout(ctx, CMDLINE_EXEC_TIMEOUT_SEC);
+
 	duk_push_global_object(ctx);  /* 'this' binding */
 	duk_call_method(ctx, 0);
+
+	cmdline_clear_exec_timeout(ctx);
 
 #if defined(DUK_CMDLINE_LOWMEM)
 	lowmem_clear_exec_timeout();
