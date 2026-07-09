@@ -849,7 +849,14 @@ static void process_multipart_form_data(char* content_data, int content_len, cha
   }
   else
   {
-    post_data = content_data;
+    /* content_data is freed by the caller (ccsp_post_module_open) after this
+       function returns, so we must copy rather than alias to avoid a double-free
+       which caused SIGSEGV/SIGABRT (signals 11/6) in crash reports. */
+    post_data = strdup(content_data);
+    if(!post_data)
+    {
+      CosaPhpExtLog("failed to allocate post data copy\n");
+    }
   }
 
   for(i=0; i<parts_len; ++i)
