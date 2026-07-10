@@ -110,10 +110,10 @@ function session_start()
     return;
   }
   ccsp_session.start();
-    if (is_https_request())
-      var $cookie = "Set-Cookie: DUKSID=" + ccsp_session.getId() + "; secure" + "; httponly";
-    else
-      var $cookie = "Set-Cookie: DUKSID=" + ccsp_session.getId() + "; httponly";
+  if (is_https_request())
+    var $cookie = "Set-Cookie: DUKSID=" + ccsp_session.getId() + "; secure" + "; httponly";
+  else
+    var $cookie = "Set-Cookie: DUKSID=" + ccsp_session.getId() + "; httponly";
   header($cookie);
   $_jst_session = ccsp_session.getData();
   $_SESSION = new Proxy($_jst_session, {
