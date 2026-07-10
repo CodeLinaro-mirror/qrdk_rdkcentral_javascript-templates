@@ -89,6 +89,17 @@ var $_SERVER = new Proxy({}, {
 var $_SESSION = {};
 var $_jst_session = null;
 var $_val_input = {};
+
+function is_https_request()
+{
+  var https = getenv('HTTPS');
+  if(https === false || https === undefined || https === null)
+    return false;
+
+  var value = String(https).toLowerCase();
+  return (value === 'on' || value === '1' || value === 'true');
+}
+
 function session_start()
 {
   if($_jst_session)
@@ -99,11 +110,10 @@ function session_start()
     return;
   }
   ccsp_session.start();
-  var host = getenv('HTTPS');
-  if (host == false)
-      var $cookie = "Set-Cookie: DUKSID=" + ccsp_session.getId() + "; httponly";
-  else
+    if (is_https_request())
       var $cookie = "Set-Cookie: DUKSID=" + ccsp_session.getId() + "; secure" + "; httponly";
+    else
+      var $cookie = "Set-Cookie: DUKSID=" + ccsp_session.getId() + "; httponly";
   header($cookie);
   $_jst_session = ccsp_session.getData();
   $_SESSION = new Proxy($_jst_session, {
@@ -127,11 +137,10 @@ function session_start()
 }
 function session_create(){
   ccsp_session.create();
-  var host = getenv('HTTPS');
-  if (host == false)
-    var $cookie = "Set-Cookie: DUKSID=" + ccsp_session.getId() + "; httponly";
-  else
+  if (is_https_request())
     var $cookie = "Set-Cookie: DUKSID=" + ccsp_session.getId() + "; secure" + "; httponly";
+  else
+    var $cookie = "Set-Cookie: DUKSID=" + ccsp_session.getId() + "; httponly";
   header($cookie);
   $_jst_session = ccsp_session.getData();
   $_SESSION = new Proxy($_jst_session, {
