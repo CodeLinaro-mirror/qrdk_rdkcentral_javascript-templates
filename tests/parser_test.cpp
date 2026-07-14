@@ -71,6 +71,9 @@ public:
       unsetenv(name_);
   }
 
+  EnvVarGuard(const EnvVarGuard&) = delete;
+  EnvVarGuard& operator=(const EnvVarGuard&) = delete;
+
 private:
   const char* name_;
   std::string old_value_;
