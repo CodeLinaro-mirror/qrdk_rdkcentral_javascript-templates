@@ -22,6 +22,7 @@
 #include <streambuf>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include "jst.h"
 #include <dirent.h>
 #include <sys/types.h>
@@ -148,6 +149,85 @@ TEST(general, read_file_directory_input_returns_failure)
 
   EXPECT_EQ(read_file("//", &buffer, &length), 0);
   EXPECT_EQ(buffer, nullptr);
+}
+
+TEST(general, session_create_multiple_calls_succeed)
+{
+  duk_context* ctx = duk_create_heap_default();
+  ASSERT_NE(ctx, nullptr);
+
+  duk_push_c_function(ctx, ccsp_session_module_open, 0);
+  ASSERT_EQ(duk_pcall(ctx, 0), DUK_EXEC_SUCCESS);
+  duk_put_global_string(ctx, "ccsp_session");
+
+  duk_get_global_string(ctx, "ccsp_session");
+  duk_get_prop_string(ctx, -1, "create");
+  ASSERT_EQ(duk_pcall(ctx, 0), DUK_EXEC_SUCCESS);
+  EXPECT_TRUE(duk_get_boolean(ctx, -1));
+  duk_pop_2(ctx);
+
+  duk_get_global_string(ctx, "ccsp_session");
+  duk_get_prop_string(ctx, -1, "create");
+  ASSERT_EQ(duk_pcall(ctx, 0), DUK_EXEC_SUCCESS);
+  EXPECT_TRUE(duk_get_boolean(ctx, -1));
+  duk_pop_2(ctx);
+
+  duk_get_global_string(ctx, "ccsp_session");
+  duk_get_prop_string(ctx, -1, "destroy");
+  ASSERT_EQ(duk_pcall(ctx, 0), DUK_EXEC_SUCCESS);
+  EXPECT_TRUE(duk_get_boolean(ctx, -1));
+  duk_pop_2(ctx);
+
+  duk_destroy_heap(ctx);
+}
+
+TEST(general, session_create_destroy_cycle_and_id_format)
+{
+  duk_context* ctx = duk_create_heap_default();
+  ASSERT_NE(ctx, nullptr);
+
+  duk_push_c_function(ctx, ccsp_session_module_open, 0);
+  ASSERT_EQ(duk_pcall(ctx, 0), DUK_EXEC_SUCCESS);
+  duk_put_global_string(ctx, "ccsp_session");
+
+  duk_get_global_string(ctx, "ccsp_session");
+  duk_get_prop_string(ctx, -1, "create");
+  ASSERT_EQ(duk_pcall(ctx, 0), DUK_EXEC_SUCCESS);
+  EXPECT_TRUE(duk_get_boolean(ctx, -1));
+  duk_pop_2(ctx);
+
+  duk_get_global_string(ctx, "ccsp_session");
+  duk_get_prop_string(ctx, -1, "getId");
+  ASSERT_EQ(duk_pcall(ctx, 0), DUK_EXEC_SUCCESS);
+  const char* first_id = duk_get_string(ctx, -1);
+  ASSERT_NE(first_id, nullptr);
+  EXPECT_EQ(strlen(first_id), 40u);
+  EXPECT_EQ(strncmp(first_id, "jst_sess", 8), 0);
+
+  char first_session_file[128] = {0};
+  snprintf(first_session_file, sizeof(first_session_file), "/tmp/%s", first_id);
+  duk_pop_2(ctx);
+
+  FILE* stale = fopen(first_session_file, "w");
+  ASSERT_NE(stale, nullptr);
+  fclose(stale);
+  ASSERT_EQ(access(first_session_file, F_OK), 0);
+
+  duk_get_global_string(ctx, "ccsp_session");
+  duk_get_prop_string(ctx, -1, "create");
+  ASSERT_EQ(duk_pcall(ctx, 0), DUK_EXEC_SUCCESS);
+  EXPECT_TRUE(duk_get_boolean(ctx, -1));
+  duk_pop_2(ctx);
+
+  EXPECT_NE(access(first_session_file, F_OK), 0);
+
+  duk_get_global_string(ctx, "ccsp_session");
+  duk_get_prop_string(ctx, -1, "destroy");
+  ASSERT_EQ(duk_pcall(ctx, 0), DUK_EXEC_SUCCESS);
+  EXPECT_TRUE(duk_get_boolean(ctx, -1));
+  duk_pop_2(ctx);
+
+  duk_destroy_heap(ctx);
 }
 
 TEST(general, session_start_does_not_modify_cookie_env)
