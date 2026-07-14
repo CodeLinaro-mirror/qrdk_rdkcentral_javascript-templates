@@ -196,6 +196,12 @@ int read_file(const char *filename, char** bufout, size_t* lenout)
   }
 
   size = (size_t)tell_result;
+  if ((long)size != tell_result || size == (size_t)-1)
+  {
+    fclose(pf);
+    fprintf(stderr, "Error: file too large %s\n", filename);
+    return 0;
+  }
 
   if(fseek(pf, 0, SEEK_SET) != 0)
   {
