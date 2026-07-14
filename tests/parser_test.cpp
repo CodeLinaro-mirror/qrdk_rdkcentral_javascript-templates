@@ -250,7 +250,7 @@ TEST(general, session_start_does_not_modify_cookie_env)
   ASSERT_NE(ctx, nullptr);
 
   duk_push_c_function(ctx, ccsp_session_module_open, 0);
-  duk_call(ctx, 0);
+  ASSERT_EQ(duk_pcall(ctx, 0), DUK_EXEC_SUCCESS);
   duk_put_global_string(ctx, "ccsp_session");
 
   duk_get_global_string(ctx, "ccsp_session");
