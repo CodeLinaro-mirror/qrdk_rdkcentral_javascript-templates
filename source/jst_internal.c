@@ -168,7 +168,22 @@ int read_file(const char *filename, char** bufout, size_t* lenout)
   size_t rc;
   char* buf;
 
+  if(!bufout || !lenout)
+  {
+    CosaPhpExtLog("read_file invalid output buffer for %s\n", filename ? filename : "(null)");
+    return 0;
+  }
+
+  *bufout = NULL;
+  *lenout = 0;
+
   CosaPhpExtLog( "read_file %s\n", filename );
+
+  if(!filename)
+  {
+    fprintf(stderr, "Error: invalid filename\n");
+    return 0;
+  }
 
   errno = 0;
   pf = fopen(filename, "r");

@@ -147,11 +147,12 @@ TEST(general, parser) {
 
 TEST(general, read_file_directory_input_returns_failure)
 {
-  char* buffer = NULL;
-  size_t length = 0;
+  char* buffer = reinterpret_cast<char*>(0x1);
+  size_t length = 123;
 
   EXPECT_EQ(read_file("//", &buffer, &length), 0);
   EXPECT_EQ(buffer, nullptr);
+  EXPECT_EQ(length, 0u);
 }
 
 TEST(general, session_create_multiple_calls_succeed)
