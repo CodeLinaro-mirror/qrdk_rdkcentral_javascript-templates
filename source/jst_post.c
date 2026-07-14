@@ -849,7 +849,10 @@ static void process_multipart_form_data(char* content_data, int content_len, cha
   }
   else
   {
-    post_data = content_data;
+    /* Multipart requests with only file parts have no _POST fields. Keep
+       post_data unset so ccsp_post.getPost() continues to mean name=value&...
+       rather than returning the raw multipart body. */
+    post_data = NULL;
   }
 
   for(i=0; i<parts_len; ++i)
