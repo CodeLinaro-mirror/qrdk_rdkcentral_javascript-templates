@@ -167,32 +167,40 @@ int read_file(const char *filename, char** bufout, size_t* lenout)
   long tell_result;
   size_t rc;
   char* buf;
+  const char* safe_filename = (filename && filename[0]) ? filename : "<invalid filename>";
 
   if(!bufout || !lenout)
   {
-    CosaPhpExtLog("read_file invalid output buffer for %s\n", filename ? filename : "(null)");
+    CosaPhpExtLog("read_file invalid output buffer for %s\n", safe_filename);
     return 0;
   }
 
   *bufout = NULL;
   *lenout = 0;
 
-  CosaPhpExtLog("read_file %s\n", filename ? filename : "(null)");
+  CosaPhpExtLog("read_file %s\n", safe_filename);
+
+  if(!filename || !filename[0])
+  {
+    CosaPhpExtLog("read_file invalid filename %s\n", safe_filename);
+    fprintf(stderr, "Error: invalid filename %s\n", safe_filename);
+    return 0;
+  }
 
   errno = 0;
   pf = fopen(filename, "r");
   if(!pf)
   {
     char * serr = strerror(errno);
-    CosaPhpExtLog( "read_file cannot open file:%s error:%s\n", filename, serr );
-    fprintf(stderr, "Error: cannot open file:%s error:%s\n", filename, serr);
+    CosaPhpExtLog( "read_file cannot open file:%s error:%s\n", safe_filename, serr );
+    fprintf(stderr, "Error: cannot open file:%s error:%s\n", safe_filename, serr);
     return 0;
   }
 
   if(fseek(pf, 0, SEEK_END) != 0)
   {
     fclose(pf);
-    fprintf(stderr, "Error: seek failed %s\n", filename);
+    fprintf(stderr, "Error: seek failed %s\n", safe_filename);
     return 0;
   }
 
@@ -200,7 +208,7 @@ int read_file(const char *filename, char** bufout, size_t* lenout)
   if(tell_result < 0)
   {
     fclose(pf);
-    fprintf(stderr, "Error: tell failed %s\n", filename);
+    fprintf(stderr, "Error: tell failed %s\n", safe_filename);
     return 0;
   }
 
@@ -208,14 +216,14 @@ int read_file(const char *filename, char** bufout, size_t* lenout)
   if ((long)size != tell_result || size == (size_t)-1 || (size_t)(int)size != size)
   {
     fclose(pf);
-    fprintf(stderr, "Error: file too large %s\n", filename);
+    fprintf(stderr, "Error: file too large %s\n", safe_filename);
     return 0;
   }
 
   if(fseek(pf, 0, SEEK_SET) != 0)
   {
     fclose(pf);
-    fprintf(stderr, "Error: rewind failed %s\n", filename);
+    fprintf(stderr, "Error: rewind failed %s\n", safe_filename);
     return 0;
   }
 
@@ -223,7 +231,7 @@ int read_file(const char *filename, char** bufout, size_t* lenout)
   if(!buf)
   {
     fclose(pf);
-    fprintf(stderr, "Error: malloc oom %s\n", filename);
+    fprintf(stderr, "Error: malloc oom %s\n", safe_filename);
     return 0;
   }
 
@@ -232,7 +240,7 @@ int read_file(const char *filename, char** bufout, size_t* lenout)
   {
     free(buf);
     fclose(pf);
-    fprintf(stderr, "Error: read failed %s\n", filename);
+    fprintf(stderr, "Error: read failed %s\n", safe_filename);
     return 0;
   }
 
