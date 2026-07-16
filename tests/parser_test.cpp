@@ -147,12 +147,17 @@ TEST(general, parser) {
 
 TEST(general, read_file_directory_input_returns_failure)
 {
+  char temp_dir_template[] = "/tmp/jst_read_file_directory_input_XXXXXX";
   char* buffer = reinterpret_cast<char*>(0x1);
   size_t length = 123;
+  char* temp_dir = mkdtemp(temp_dir_template);
 
-  EXPECT_EQ(read_file("//", &buffer, &length), 0);
+  ASSERT_NE(temp_dir, nullptr);
+
+  EXPECT_EQ(read_file(temp_dir, &buffer, &length), 0);
   EXPECT_EQ(buffer, nullptr);
   EXPECT_EQ(length, 0u);
+  EXPECT_EQ(rmdir(temp_dir), 0);
 }
 
 TEST(general, session_create_multiple_calls_succeed)
