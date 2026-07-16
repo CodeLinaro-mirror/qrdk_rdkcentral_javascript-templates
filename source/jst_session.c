@@ -111,16 +111,23 @@ static duk_ret_t session_start(duk_context *ctx)
       sesid= tmp;
       tmp++;
     }
-    CosaPhpExtLog("%s: sesid %s\n", __PRETTY_FUNCTION__, sesid);
     if(sesid)
     {
+      CosaPhpExtLog("%s: sesid %s\n", __PRETTY_FUNCTION__, sesid);
       sesid += 7;
       sesid_end = strchr(sesid, ';');
       if(sesid_end)
         sesid_len = (size_t)(sesid_end - sesid);
       else
         sesid_len = strlen(sesid);
+    }
+    else
+    {
+      CosaPhpExtLog("%s: sesid <not found>\n", __PRETTY_FUNCTION__);
+    }
 
+    if(sesid)
+    {
        if(sesid_len == SESSION_ID_LENGTH)
       {
            memcpy(sesid_copy, sesid, SESSION_ID_LENGTH);
