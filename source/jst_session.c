@@ -106,7 +106,7 @@ static duk_ret_t session_start(duk_context *ctx)
     size_t sesid_len = 0;
     char sesid_copy[SESSION_ID_LENGTH + 1];
     const char* tmp = cookie;
-    while (tmp = strstr(tmp, "DUKSID="))
+    while ((tmp = strstr(tmp, "DUKSID=")))
     {
       sesid= tmp;
       tmp++;

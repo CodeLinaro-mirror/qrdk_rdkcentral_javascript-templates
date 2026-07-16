@@ -177,13 +177,7 @@ int read_file(const char *filename, char** bufout, size_t* lenout)
   *bufout = NULL;
   *lenout = 0;
 
-  CosaPhpExtLog( "read_file %s\n", filename );
-
-  if(!filename)
-  {
-    fprintf(stderr, "Error: invalid filename\n");
-    return 0;
-  }
+  CosaPhpExtLog("read_file %s\n", filename ? filename : "(null)");
 
   errno = 0;
   pf = fopen(filename, "r");
@@ -211,7 +205,7 @@ int read_file(const char *filename, char** bufout, size_t* lenout)
   }
 
   size = (size_t)tell_result;
-  if ((long)size != tell_result || size == (size_t)-1)
+  if ((long)size != tell_result || size == (size_t)-1 || (size_t)(int)size != size)
   {
     fclose(pf);
     fprintf(stderr, "Error: file too large %s\n", filename);
