@@ -110,11 +110,8 @@ function session_start()
     return;
   }
   ccsp_session.start();
-  var $session_id = ccsp_session.getId();
-  var $cookie = "Set-Cookie: DUKSID=" + $session_id + "; httponly";
-  if (is_https_request())
-    $cookie = "Set-Cookie: DUKSID=" + $session_id + "; secure; httponly";
-  header($cookie);
+  var cookie = "Set-Cookie: DUKSID=" + ccsp_session.getId() + "; HttpOnly" + (is_https_request() ? "; Secure" : "");
+  header(cookie);
   $_jst_session = ccsp_session.getData();
   $_SESSION = new Proxy($_jst_session, {
     get: function(obj, prop) {
@@ -137,11 +134,8 @@ function session_start()
 }
 function session_create(){
   ccsp_session.create();
-  var $session_id = ccsp_session.getId();
-  var $cookie = "Set-Cookie: DUKSID=" + $session_id + "; httponly";
-  if (is_https_request())
-    $cookie = "Set-Cookie: DUKSID=" + $session_id + "; secure; httponly";
-  header($cookie);
+  var cookie = "Set-Cookie: DUKSID=" + ccsp_session.getId() + "; HttpOnly" + (is_https_request() ? "; Secure" : "");
+  header(cookie);
   $_jst_session = ccsp_session.getData();
   $_SESSION = new Proxy($_jst_session, {
     get: function(obj, prop) {
