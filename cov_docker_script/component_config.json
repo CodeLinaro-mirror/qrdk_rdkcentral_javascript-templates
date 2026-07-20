@@ -76,7 +76,7 @@
       {
         "name": "dbus",
         "repo": "https://github.com/deepin-community/dbus.git",
-        "branch" : "master",
+        "branch" : "1.14.10-3-1deepin3",
         "build": {
           "type": "cmake",
           "build_dir": "build",
