@@ -14,6 +14,8 @@ permissions:
 jobs:
   build-jst-on-pr:
     name: Build javascript-templates component in github rdkcentral
+    needs: detect-source-changes
+    if: github.event_name != 'pull_request' || needs.detect-source-changes.outputs.has_component == 'true'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rdkcentral/docker-rdk-ci:latest
@@ -39,9 +41,9 @@ jobs:
 
   detect-source-changes:
     name: Detect source path changes for CodeQL
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
+      has_component: ${{ steps.filter.outputs.component }}
       has_cpp: ${{ steps.filter.outputs.cpp }}
       has_python: ${{ steps.filter.outputs.python }}
       has_js: ${{ steps.filter.outputs.javascript }}
@@ -55,6 +57,8 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
+            component:
+              - 'source/**/*'
             cpp:
               - 'source/**/*.c'
               - 'source/**/*.h'
