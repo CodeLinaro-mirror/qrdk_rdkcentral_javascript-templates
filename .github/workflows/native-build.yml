@@ -12,10 +12,36 @@ permissions:
   pull-requests: read
 
 jobs:
+  build-jst-on-push:
+    name: Build javascript-templates component on push
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rdkcentral/docker-rdk-ci:latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: native build
+        run: |
+          # Trust the workspace
+          git config --global --add safe.directory '*'
+          # Pull the latest changes for the native build system
+          git submodule update --init --recursive --remote
+          # Build and install dependencies
+          chmod +x build_tools_workflows/cov_docker_script/setup_dependencies.sh
+          ./build_tools_workflows/cov_docker_script/setup_dependencies.sh ./cov_docker_script/component_config.json
+          # Build component
+          chmod +x build_tools_workflows/cov_docker_script/build_native.sh
+          ./build_tools_workflows/cov_docker_script/build_native.sh ./cov_docker_script/component_config.json "$(pwd)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.RDKCM_RDKE }}
+
   build-jst-on-pr:
-    name: Build javascript-templates component in github rdkcentral
+    name: Build javascript-templates component on PR
     needs: detect-source-changes
-    if: github.event_name != 'pull_request' || needs.detect-source-changes.outputs.has_component == 'true'
+    if: github.event_name == 'pull_request' && needs.detect-source-changes.outputs.has_component == 'true'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rdkcentral/docker-rdk-ci:latest
@@ -41,6 +67,7 @@ jobs:
 
   detect-source-changes:
     name: Detect source path changes for CodeQL
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       has_component: ${{ steps.filter.outputs.component }}
@@ -79,6 +106,7 @@ jobs:
               - 'source/**/*.js'
               - 'jsts/**/*.js'
               - 'tests/**/*.js'
+
   codeql-c-cpp:
     name: CodeQL (C/C++)
     needs: detect-source-changes
