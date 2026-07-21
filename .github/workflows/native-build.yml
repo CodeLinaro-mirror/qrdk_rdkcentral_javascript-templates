@@ -132,7 +132,7 @@ jobs:
       - name: Build component for CodeQL
         run: |
           git config --global --add safe.directory '*'
-          git submodule update --init --recursive --remote
+          git submodule update --init --recursive
           chmod +x build_tools_workflows/cov_docker_script/setup_dependencies.sh
           ./build_tools_workflows/cov_docker_script/setup_dependencies.sh ./cov_docker_script/component_config.json
           chmod +x build_tools_workflows/cov_docker_script/build_native.sh
