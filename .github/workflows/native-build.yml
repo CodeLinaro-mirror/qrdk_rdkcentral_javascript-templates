@@ -10,7 +10,6 @@ permissions:
   actions: read
   contents: read
   pull-requests: read
-  security-events: write
 
 jobs:
   build-jst-on-pr:
@@ -85,6 +84,10 @@ jobs:
     needs: detect-source-changes
     if: github.event_name == 'pull_request' && needs.detect-source-changes.outputs.has_cpp == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     container:
       image: ghcr.io/rdkcentral/docker-rdk-ci:latest
 
@@ -119,6 +122,10 @@ jobs:
     needs: detect-source-changes
     if: github.event_name == 'pull_request' && needs.detect-source-changes.outputs.has_python == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
     steps:
       - name: Checkout code
@@ -146,6 +153,10 @@ jobs:
     needs: detect-source-changes
     if: github.event_name == 'pull_request' && needs.detect-source-changes.outputs.has_js == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
     steps:
       - name: Checkout code
