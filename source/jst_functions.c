@@ -18,8 +18,12 @@
 */
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include "jst_internal.h"
 #include "jst.h"
@@ -41,6 +45,83 @@ typedef struct {
     size_t datasize;        // data size
     size_t memsize;         // allocated memory size (if applicable)
 } MemData;
+
+static int is_exec_command_safe(const char* command)
+{
+  const char* p = NULL;
+
+  if (!command || !*command)
+    return 0;
+
+  for (p = command; *p; ++p)
+  {
+    if (isalnum((unsigned char)*p) || *p == '/' || *p == '.' || *p == '_' ||
+        *p == '-' || *p == ':' || *p == '=' || *p == '+' || *p == '@' ||
+        isspace((unsigned char)*p))
+    {
+      continue;
+    }
+
+    return 0;
+  }
+
+  return 1;
+}
+
+static void free_exec_argv(char** argv)
+{
+  if (argv)
+  {
+    free(argv[0]);
+    free(argv);
+  }
+}
+
+static char** build_exec_argv(const char* command)
+{
+  char* command_copy = NULL;
+  char* scan_ctx = NULL;
+  char* token = NULL;
+  int argc = 0;
+  int i = 0;
+  char** argv = NULL;
+
+  command_copy = strdup(command);
+  if (!command_copy)
+    return NULL;
+
+  token = strtok_r(command_copy, " \t\r\n", &scan_ctx);
+  while (token)
+  {
+    argc++;
+    token = strtok_r(NULL, " \t\r\n", &scan_ctx);
+  }
+
+  if (argc == 0)
+  {
+    free(command_copy);
+    return NULL;
+  }
+
+  argv = calloc((size_t)argc + 1, sizeof(char*));
+  if (!argv)
+  {
+    free(command_copy);
+    return NULL;
+  }
+
+  argv[0] = command_copy;
+  scan_ctx = NULL;
+  token = strtok_r(command_copy, " \t\r\n", &scan_ctx);
+  while (token && i < argc)
+  {
+    argv[i++] = token;
+    token = strtok_r(NULL, " \t\r\n", &scan_ctx);
+  }
+  argv[i] = NULL;
+
+  return argv;
+}
 
 
 static duk_ret_t do_getenv(duk_context *ctx)
@@ -148,28 +229,77 @@ static duk_ret_t do_gettext(duk_context *ctx)
 static duk_ret_t do_exec(duk_context *ctx)
 {
   char* command;
+  char** argv = NULL;
+  int pipefd[2] = {-1, -1};
+  pid_t child_pid;
+  int child_status;
   char *line = NULL;
   size_t len = 0;
   ssize_t nread;
   duk_idx_t idx;
   int index = 0;
+  FILE* output_pipe = NULL;
 
   idx = duk_push_array(ctx);
 
   if (!parse_parameter(__FUNCTION__, ctx, "s", &command))
     return 1;
 
+  if (!is_exec_command_safe(command))
+  {
+    CosaPhpExtLog("exec rejected unsafe command input\n");
+    return 1;
+  }
+
+  argv = build_exec_argv(command);
+  if (!argv)
+  {
+    CosaPhpExtLog("exec failed to parse command arguments\n");
+    return 1;
+  }
+
   CosaPhpExtLog("exec command=%s\n", command);
 
-  FILE* pipe = popen(command, "r");
-  if (!pipe)
+  if (pipe(pipefd) != 0)
+  {
+    CosaPhpExtLog("exec failed to create pipe error=%s\n", strerror(errno));
+    free_exec_argv(argv);
+    return 1;
+  }
+
+  child_pid = fork();
+  if (child_pid < 0)
+  {
+    CosaPhpExtLog("exec failed to fork error=%s\n", strerror(errno));
+    close(pipefd[0]);
+    close(pipefd[1]);
+    free_exec_argv(argv);
+    return 1;
+  }
+
+  if (child_pid == 0)
+  {
+    close(pipefd[0]);
+    dup2(pipefd[1], STDOUT_FILENO);
+    dup2(pipefd[1], STDERR_FILENO);
+    close(pipefd[1]);
+    execvp(argv[0], argv);
+    _exit(127);
+  }
+
+  close(pipefd[1]);
+  output_pipe = fdopen(pipefd[0], "r");
+  if (!output_pipe)
   {
     CosaPhpExtLog("exec failed to open pipe\n");
+    close(pipefd[0]);
+    waitpid(child_pid, &child_status, 0);
+    free_exec_argv(argv);
     duk_pop(ctx);
     return 1;    
   }
 
-  while((nread = getline(&line, &len, pipe)) != -1)
+  while((nread = getline(&line, &len, output_pipe)) != -1)
   {
     CosaPhpExtLog("exec line: %s\n", line);
     duk_push_string(ctx, line);
@@ -177,7 +307,9 @@ static duk_ret_t do_exec(duk_context *ctx)
   }
 
   free(line);
-  pclose(pipe);
+  fclose(output_pipe);
+  waitpid(child_pid, &child_status, 0);
+  free_exec_argv(argv);
 
   return 1;
 }
@@ -615,7 +747,7 @@ static duk_ret_t do_openssl_verify_with_cert(duk_context *ctx)
   /* === NOW PROCEED WITH SIGNATURE VERIFICATION === */
 
   //open certificate file
-  if(memcmp(filepath, "file://", sizeof("file://")-1) != 0)
+  if(strncmp(filepath, "file://", sizeof("file://")-1) != 0)
   {
     CosaPhpExtLog("openssl_verify_with_cert: file %s doesn't begin with 'file://'\n", filepath);
     free(sig_bytes);
