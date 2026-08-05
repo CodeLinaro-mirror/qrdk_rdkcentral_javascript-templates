@@ -164,6 +164,7 @@ int read_file(const char *filename, char** bufout, size_t* lenout)
 {
   FILE* pf;
   size_t size;
+  long tell_result;
   size_t rc;
   char* buf;
 
@@ -179,8 +180,16 @@ int read_file(const char *filename, char** bufout, size_t* lenout)
     return 0;
   }
 
-  fseek(pf, 0, SEEK_END); 
-  size = ftell(pf);
+  fseek(pf, 0, SEEK_END);
+  tell_result = ftell(pf);
+  if (tell_result < 0)
+  {
+    CosaPhpExtLog("read_file ftell failed:%s error:%s\n", filename, strerror(errno));
+    fclose(pf);
+    fprintf(stderr, "Error: ftell failed %s\n", filename);
+    return 0;
+  }
+  size = (size_t)tell_result;
   rewind(pf);
 
   buf = (char*)calloc(size+1, 1);
