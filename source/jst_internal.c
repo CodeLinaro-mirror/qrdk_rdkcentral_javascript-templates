@@ -180,13 +180,28 @@ int read_file(const char *filename, char** bufout, size_t* lenout)
     return 0;
   }
 
-  fseek(pf, 0, SEEK_END);
+  if (fseek(pf, 0, SEEK_END) != 0)
+  {
+    CosaPhpExtLog("read_file fseek failed:%s error:%s\n", filename, strerror(errno));
+    fclose(pf);
+    fprintf(stderr, "Error: fseek failed %s\n", filename);
+    return 0;
+  }
+
+  errno = 0;
   tell_result = ftell(pf);
   if (tell_result < 0)
   {
     CosaPhpExtLog("read_file ftell failed:%s error:%s\n", filename, strerror(errno));
     fclose(pf);
     fprintf(stderr, "Error: ftell failed %s\n", filename);
+    return 0;
+  }
+  if ((unsigned long long)tell_result > (unsigned long long)(SIZE_MAX - 1))
+  {
+    CosaPhpExtLog("read_file size overflow:%s size:%ld\n", filename, tell_result);
+    fclose(pf);
+    fprintf(stderr, "Error: file too large %s\n", filename);
     return 0;
   }
   size = (size_t)tell_result;

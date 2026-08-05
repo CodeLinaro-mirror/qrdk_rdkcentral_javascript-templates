@@ -128,7 +128,7 @@ static duk_ret_t session_start(duk_context *ctx)
          }
            /* Validate session ID*/
          while (isvalid && idx < SESSION_ID_LENGTH) {
-              if (!isalnum(sesid[idx])) {
+              if (!isalnum((unsigned char)sesid[idx])) {
                       CosaPhpExtLog("Invalid SessionID\n");
                       isvalid = 0;
                       break;
