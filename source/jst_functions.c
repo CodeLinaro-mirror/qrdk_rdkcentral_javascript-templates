@@ -46,6 +46,11 @@ typedef struct {
     size_t memsize;         // allocated memory size (if applicable)
 } MemData;
 
+typedef struct {
+  char** argv;
+  char* command_copy;
+} ExecArgv;
+
 static int is_exec_command_safe(const char* command)
 {
   const char* p = NULL;
@@ -68,16 +73,18 @@ static int is_exec_command_safe(const char* command)
   return 1;
 }
 
-static void free_exec_argv(char** argv)
+static void free_exec_argv(ExecArgv* exec_argv)
 {
-  if (argv)
+  if (exec_argv)
   {
-    free(argv[0]);
-    free(argv);
+    free(exec_argv->command_copy);
+    free(exec_argv->argv);
+    exec_argv->command_copy = NULL;
+    exec_argv->argv = NULL;
   }
 }
 
-static char** build_exec_argv(const char* command)
+static int build_exec_argv(const char* command, ExecArgv* exec_argv)
 {
   char* command_copy = NULL;
   char* scan_ctx = NULL;
@@ -86,9 +93,15 @@ static char** build_exec_argv(const char* command)
   int i = 0;
   char** argv = NULL;
 
+  if (!exec_argv)
+    return 0;
+
+  exec_argv->argv = NULL;
+  exec_argv->command_copy = NULL;
+
   command_copy = strdup(command);
   if (!command_copy)
-    return NULL;
+    return 0;
 
   token = strtok_r(command_copy, " \t\r\n", &scan_ctx);
   while (token)
@@ -100,17 +113,16 @@ static char** build_exec_argv(const char* command)
   if (argc == 0)
   {
     free(command_copy);
-    return NULL;
+    return 0;
   }
 
   argv = calloc((size_t)argc + 1, sizeof(char*));
   if (!argv)
   {
     free(command_copy);
-    return NULL;
+    return 0;
   }
 
-  argv[0] = command_copy;
   scan_ctx = NULL;
   token = strtok_r(command_copy, " \t\r\n", &scan_ctx);
   while (token && i < argc)
@@ -120,7 +132,9 @@ static char** build_exec_argv(const char* command)
   }
   argv[i] = NULL;
 
-  return argv;
+  exec_argv->argv = argv;
+  exec_argv->command_copy = command_copy;
+  return 1;
 }
 
 
@@ -229,7 +243,7 @@ static duk_ret_t do_gettext(duk_context *ctx)
 static duk_ret_t do_exec(duk_context *ctx)
 {
   char* command;
-  char** argv = NULL;
+  ExecArgv exec_argv = {0};
   int pipefd[2] = {-1, -1};
   pid_t child_pid;
   int child_status;
@@ -251,8 +265,7 @@ static duk_ret_t do_exec(duk_context *ctx)
     return 1;
   }
 
-  argv = build_exec_argv(command);
-  if (!argv)
+  if (!build_exec_argv(command, &exec_argv))
   {
     CosaPhpExtLog("exec failed to parse command arguments\n");
     return 1;
@@ -263,7 +276,7 @@ static duk_ret_t do_exec(duk_context *ctx)
   if (pipe(pipefd) != 0)
   {
     CosaPhpExtLog("exec failed to create pipe error=%s\n", strerror(errno));
-    free_exec_argv(argv);
+    free_exec_argv(&exec_argv);
     return 1;
   }
 
@@ -273,7 +286,7 @@ static duk_ret_t do_exec(duk_context *ctx)
     CosaPhpExtLog("exec failed to fork error=%s\n", strerror(errno));
     close(pipefd[0]);
     close(pipefd[1]);
-    free_exec_argv(argv);
+    free_exec_argv(&exec_argv);
     return 1;
   }
 
@@ -283,7 +296,7 @@ static duk_ret_t do_exec(duk_context *ctx)
     dup2(pipefd[1], STDOUT_FILENO);
     dup2(pipefd[1], STDERR_FILENO);
     close(pipefd[1]);
-    execvp(argv[0], argv);
+    execvp(exec_argv.argv[0], exec_argv.argv);
     _exit(127);
   }
 
@@ -294,7 +307,7 @@ static duk_ret_t do_exec(duk_context *ctx)
     CosaPhpExtLog("exec failed to open pipe\n");
     close(pipefd[0]);
     waitpid(child_pid, &child_status, 0);
-    free_exec_argv(argv);
+    free_exec_argv(&exec_argv);
     duk_pop(ctx);
     return 1;    
   }
@@ -309,7 +322,7 @@ static duk_ret_t do_exec(duk_context *ctx)
   free(line);
   fclose(output_pipe);
   waitpid(child_pid, &child_status, 0);
-  free_exec_argv(argv);
+  free_exec_argv(&exec_argv);
 
   return 1;
 }
