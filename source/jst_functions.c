@@ -319,7 +319,6 @@ static duk_ret_t do_exec(duk_context *ctx)
     close(pipefd[0]);
     waitpid(child_pid, &child_status, 0);
     free_exec_argv(&exec_argv);
-    duk_pop(ctx);
     return 1;    
   }
 
