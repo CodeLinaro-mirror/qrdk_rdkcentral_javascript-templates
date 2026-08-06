@@ -87,6 +87,7 @@ static void free_exec_argv(ExecArgv* exec_argv)
 static int build_exec_argv(const char* command, ExecArgv* exec_argv)
 {
   char* command_copy = NULL;
+  char* command_scan_copy = NULL;
   char* scan_ctx = NULL;
   char* token = NULL;
   int argc = 0;
@@ -103,12 +104,22 @@ static int build_exec_argv(const char* command, ExecArgv* exec_argv)
   if (!command_copy)
     return 0;
 
-  token = strtok_r(command_copy, " \t\r\n", &scan_ctx);
+  command_scan_copy = strdup(command);
+  if (!command_scan_copy)
+  {
+    free(command_copy);
+    return 0;
+  }
+
+  token = strtok_r(command_scan_copy, " \t\r\n", &scan_ctx);
   while (token)
   {
     argc++;
     token = strtok_r(NULL, " \t\r\n", &scan_ctx);
   }
+
+  free(command_scan_copy);
+  command_scan_copy = NULL;
 
   if (argc == 0)
   {
