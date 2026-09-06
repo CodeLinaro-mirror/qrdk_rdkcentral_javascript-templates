@@ -158,14 +158,16 @@ function session_create(){
     },
     set: function(obj, prop, val){
       obj[prop] = val;
-      ccsp_session.setData(obj);
+      if(ccsp_session.getStatus())
+        ccsp_session.setData(obj);
       return true;
     },
     deleteProperty(obj, prop) {
       if(prop in obj)
       {
         delete obj[prop];
-        ccsp_session.setData(obj);
+        if(ccsp_session.getStatus())
+          ccsp_session.setData(obj);
       }
       return true;
     }
