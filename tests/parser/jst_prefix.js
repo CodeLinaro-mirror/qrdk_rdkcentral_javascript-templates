@@ -83,11 +83,11 @@ var $_jst_session = null;
 function session_start()
 {
   if($_jst_session)
-    return;
+    return true;
   if(!ccsp_session.start())
   {
     /* A stale cookie must not create a proxy backed by an inactive session. */
-    $_jst_session = {};
+    $_jst_session = null;
     $_SESSION = {};
     return false;
   }

@@ -80,8 +80,11 @@ static int request_is_https(void)
   const char* val;
 
   val = getenv("HTTPS");
-  if(val && val[0] && strcasecmp(val, "off") != 0)
-    return 1;
+  if(val && val[0])
+  {
+    if(strcasecmp(val, "on") == 0 || strcmp(val, "1") == 0 || strcasecmp(val, "true") == 0)
+      return 1;
+  }
 
   val = getenv("REQUEST_SCHEME");
   if(val && strcasecmp(val, "https") == 0)
