@@ -99,11 +99,11 @@ function _jst_session_cookie()
 function session_start()
 {
   if($_jst_session)
-    return;
+    return true;
   if($_val_input == 1) 
   {
     $_val_input = 0;
-    return;
+    return false;
   }
   if(!ccsp_session.start())
   {
@@ -142,7 +142,12 @@ function session_start()
   return true;
 }
 function session_create(){
-  ccsp_session.create();
+  if(!ccsp_session.create())
+  {
+    $_jst_session = null;
+    $_SESSION = {};
+    return false;
+  }
   header(_jst_session_cookie());
   $_jst_session = ccsp_session.getData();
   if($_jst_session === null || typeof($_jst_session) !== 'object')
@@ -165,6 +170,7 @@ function session_create(){
       return true;
     }
   });
+  return true;
 }
 function session_id()
 {
